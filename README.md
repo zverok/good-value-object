@@ -173,9 +173,20 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
 ## Comparison
 
 * Provide `==` method for values
-  * Values should be equal if, and only if, all of their structural elements are equal
+  * Values should be equal if, and only if, all of their structural elements are equal _or could be converted in a tuple of equal structured elements_
+  ```ruby
+  # example of the latter:
+  Quantity.new(1000, 'm') == Quantity.new(1, 'km') # => probably true, unless the domain is some formal reporting system
+  ```
   * `==` should NOT raise on attempt to compare with incompatible type: in Ruby, `1 == "1"` is just `false`, not a deadly sin punished by exception
-  * Do not be too generous on equality: `Quantity.new(10, 'm') == 10` may seem like a good idea in some context, yet it will eventually lead to a lot of hidden bugs
+  * Value of other type _could_ be considered equal, if it could be converted into value of current type without loosing context:
+  ```ruby
+  # Good
+  Quantity.new(1, 'm') == Unitwise(1, 'm')
+  Date.parse('2017-05-01') == Time.parse('2017-05-01') # Doesn't work in Ruby though ;)
+  # Bad
+  Quantity.new(10, 'm') == 10 # could be helpful in some particular case yet source of hidden bugs
+  ```
 * See "Behavior in hashes" about overriding `#eql?`
 * **Never** override `#equal?`
 * Provide order comparison for values (`<`, `>` and so on) if, and only if, order on all acceptable values is defined and unambiguous
