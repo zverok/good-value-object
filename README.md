@@ -323,13 +323,13 @@ Quantity.try_from_a([10]) # => nil
 
 ## Behavior in hashes
 
-* If it is _a slightest possibility_ the value type could be used as a key in hashes, implement `#hash`, returning unique number for each unique combination of structural elements. The easiest implementation is probably
+* If it is _a slightest possibility_ the value type could be used as a key in hashes, implement `#hash`, returning different number for different combinations of structural elements, and same number for same combination. The easiest implementation is probably
   ```ruby
   def hash
     [each, of, structural, elements].map(&:hash).hash
   end
   ```
-* In this case `#eql?` method also **should** be implemented, as Hash uses it to decide on key's equality. Typically, it can be just an alias to `#==`, but if `#==` is forgiving, `#eql?` should be strict.
+* In this case `#eql?` method also **should** be implemented, as Hash uses it to decide on key's equality on `#hash` values collision (as number of possible integer values could be lower than number of possible value object values). Typically, it can be just an alias to `#==`, but if `#==` is forgiving, `#eql?` should be strict.
   ```ruby
   # Imagine Paragraph class, which is just a wrapper around String, but with some fancy interface
   # It can have...
@@ -341,8 +341,9 @@ Quantity.try_from_a([10]) # => nil
   h = {'test' => 1, Paragraph.new('test') => 2}
   # ...may lead to only ONE key being stored
   ```
-  Probable approach to reimplement stricter `#eql?` is
+* If `#eql?` implementation is different from `#==`'s, **never** implement it as a `#hash` comparison
   ```ruby
+  # Really bad: on hash collision Hash will have no means of telling two values one from other
   def eql?(other)
     hash == other.hash
   end
