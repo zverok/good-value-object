@@ -138,7 +138,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
 
 * You should implement `#inspect` for your types, it is really helpful for debugging
 * By convention, `#inspect` for value types should look like `#<TypeName value representation>`
-* Value representation should be full (without loosing important details) yet concise (without variable names and unimportant clarifications)
+* Value representation should be full (without losing important details) yet concise (without variable names and unimportant clarifications)
   ```ruby
   # Good
   Quantity.new(10, 'm').inspect # => "#<Quantity 10 m>" or #<Quantity(10 m)>`
