@@ -1,4 +1,4 @@
-# Good Value Object convertion for Ruby
+# Good Value Object Conventions for Ruby
 
 > In computer science, a **value object** is a small object that represents a _simple_ entity whose equality is not based on identity: i.e. two value objects are _equal_ when they have the same _value_, not necessarily being the _same object_. [→](https://en.wikipedia.org/wiki/Value_object)
 
