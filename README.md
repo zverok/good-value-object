@@ -44,6 +44,15 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   Quantity.parse('10 m')
   ```
   * See also "Conversion to and from other types"
+  * Note: there are still cases where string representation is the most natural for "default" constructor:
+  ```ruby
+  # Probably OK
+  IPAddress.new('192.168.0.1')
+  # Does it bring additional clarity? YMMV
+  IPAddress.new(192, 168, 0, 1)
+  # Please don't!
+  IPAddress.new(byte1: 192, byte2: 168, byte3: 0, byte4: 1)
+  ```
 
 * It is acceptable to have structural elements converted or wrapped on construction
   ```ruby
@@ -52,7 +61,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   q.unit # => #<Quantity::Unit m>
   ```
 
-* Consider using keyword arguments instead of positional ones, especially if there are more than 2 arguments for constructor, or order is not obvious (is it `GeoPoint.new(lat, lng)` or `GeoPoint.new(lng, lat)`?)
+* Prefer keyword arguments over positional ones in most cases, especially if there are more than 2 arguments for constructor, or order is not obvious (is it `GeoPoint.new(lat, lng)` or `GeoPoint.new(lng, lat)`?)
   * (Obvious yet mandatory: please, use real keyword arguments, not pre-Ruby 2.1 `params = {}` hack)
 * Value construction options could be provided by keyword arguments, but it is undesirable to have both main argument and options as keyword arguments, or having both as positional arguments
   ```ruby
@@ -64,13 +73,14 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   Quantity.new(amount: 10, unit: 'm', system: Quantity::SI)
   Quantity.new(10, 'm', Quantity::SI)
   ```
-
+  * Note: Probably, specialized constructors are better than options in the generic constructor;
 * Sometimes it is useful (but not required) to provide construction method synonymous with the type name, e.g. `Quantity(amount, unit)`; it brings no additional functionality yet emphasizes the fact that value "just exists", and we are referencing to existing concept of "10 meters", not constructing it (which "new" implies)
 * If there are expected to be a lot of similar objects created during the lifecycle of the application, consider caching objects (having exactly one object for one value). `Type.new` can be redefined for this purpose:
   ```ruby
   10.times.map { Quantity.new(10, 'm') }.map(&:object_id).uniq.count # => 1
   ```
   Another approach seen in use is making `Type.new` private, and making `Type(...)` or `Type.[]` (with caching inside) the primary construction method.
+  * Consider global caching with a great thoroughness: it may be not threadsafe, and may lead to a lot of memory eaten if never gets flushed.
 
 * Avoid redefining `.new` for other purposes, especially to return value of type different from requested:
   ```ruby
@@ -112,6 +122,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
     # Probably better
     Quantity.new(10, 'm').unit.create(20) # => Quantity(20, 'm')
     ```
+    * `#with` is another frequently used option instead of `#merge`.
 
 * **No global option** should change behavior of value objects. Consider providing "context" or "environment" to constructor or instance method:
 
@@ -221,7 +232,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
 * Consider providing a subset of math operators (`+`, `-`, `*`, `/` and so on) if their meaning is obvious and unambiguous
 * Try to follow "natural" intuition of mathematical operators (`a + b == b + a`, `a - b = a + (-b)` and so on)
   * Note that Ruby's intuition also redefines some of operators base qualities, when acceptable, for example, using `+` for _concatenation_ (of strings and arrays), which is not commutative
-* Don't override operators just because it is cool: using, say `~Quantity.new(10, 'm')` to say "something about this quantity" (for example, producing range `Quantity.new(9.5, 'm')..Quantity.new(10.5, 'm')`) is cool for play yet leads to unguessable code
+* Don't override operators just because it is cool: using, say `~Quantity.new(10, 'm')` to say "something about this quantity" (for example, producing range `Quantity.new(9.5, 'm')..Quantity.new(10.5, 'm')`) is witty yet leads to unguessable code
 * Consider implementing `|` and `&` if:
   * value object is some kind of pattern, for this operators to mean "or" and "and"
   * value object represents some kind of range(s), for this operators to mean "union" and "intersection"
@@ -326,7 +337,7 @@ Quantity.try_from_a([10]) # => nil
 * If it is _a slightest possibility_ the value type could be used as a key in hashes, implement `#hash`, returning different number for different combinations of structural elements, and same number for same combination. The easiest implementation is probably
   ```ruby
   def hash
-    [each, of, structural, elements].map(&:hash).hash
+    [each, of, structural, elements, self.class].hash
   end
   ```
 * In this case `#eql?` method also **should** be implemented, as Hash uses it to decide on key's equality on `#hash` values collision (as number of possible integer values could be lower than number of possible value object values). Typically, it can be just an alias to `#==`, but if `#==` is forgiving, `#eql?` should be strict.
