@@ -24,9 +24,9 @@ We are using imaginary, yet real-life-alike `Quantity { amount: Numeric, unit: S
 
 ## Definitions
 
-We can think about most value objects as a Struct (not Ruby's particular implementation, but generic programming concept: group of named fields). The fields of this structure we further will call **structured elements**. It is logical concept rather than implementational.
+We can think about most value objects as a Struct (not Ruby's particular implementation, but generic programming concept: group of named fields). The fields of this structure we further will call **structural elements**. It is logical concept rather than implementational.
 
-**Example**: for `Date` value type, "structural" values are probably `(year, month, day of month)` (maybe `calendar` too, depending of fancyness of your date). That does _not_ imply that `Date` instance stores them in instance variables, neither the fact that it is the only instance variables:
+**Example**: for `Date` value type, "structural" values are probably `(year, month, day of month)` (maybe `calendar` too, depending of fanciness of your date). That does _not_ imply that `Date` instance stores them in instance variables, neither the fact that it is the only instance variables:
 
 * Date may be internally represented by one integer value, and calculate components back and force on construction and parts accessors;
 * Date may have _weekday_ as an accessor and instance variable. But it is probably derived value, because it indeed can be derived from year, month and day, and there are _almost_ no situations where it can be used to specify the date (e.g. `2018, March, Monday` is ambiguous, and `2018, March, 5th` doesn't need weekday to be specific).
@@ -43,7 +43,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   Quantity.new(10, 'm')
   Quantity.parse('10 m')
   ```
-  * See also "Conversion to and from other types"
+  * See also "[Conversions](#conversions)"" section
   * Note: there are still cases where string representation is the most natural for "default" constructor:
   ```ruby
   # Probably OK
@@ -74,7 +74,14 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   Quantity.new(10, 'm', Quantity::SI)
   ```
   * Note: Probably, specialized constructors are better than options in the generic constructor;
-* Sometimes it is useful (but not required) to provide construction method synonymous with the type name, e.g. `Quantity(amount, unit)`; it brings no additional functionality yet emphasizes the fact that value "just exists", and we are referencing to existing concept of "10 meters", not constructing it (which "new" implies)
+* Sometimes it is useful (but not required) to provide construction method synonymous with the type name, e.g. `Quantity(amount, unit)`; it brings no additional functionality yet emphasizes the fact that value "just exists", and we are referencing to existing concept of "10 meters", not constructing it (which "new" implies);
+  * As an alternative, consider providing `{Type}.call` class method: it allows to have almost the same look-and-feel, yet semantically belongs to the same module instead of being a global method:
+  ```ruby
+  # Shortcut for .call, available since Ruby 1.9
+  Quantity.(10, 'm')
+  # Some prefer this alternative:
+  Quantity[10, 'm']
+  ```
 * If there are expected to be a lot of similar objects created during the lifecycle of the application, consider caching objects (having exactly one object for one value). `Type.new` can be redefined for this purpose:
   ```ruby
   10.times.map { Quantity.new(10, 'm') }.map(&:object_id).uniq.count # => 1
@@ -95,7 +102,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
 ## Basic properties
 
 * All structural elements of the value should be exposed as `attr_reader`s (or methods with the same behavior)
-* Value object **should** be absolutely immutable, no `attr_setter`s and no other way to change value of the object
+* Value object **should** be absolutely immutable, no `attr_writer`s and no other way to change value of the object
   * It is wise to `freeze` all structural elements that belong to mutable Ruby types, to prevent code like this:
     ```ruby
     q = Quantity.new(10, 'm')
@@ -178,7 +185,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   # Could be acceptable in some contexts
   Quantity.new(10_000_000, 'm').inspect # => #<Quantity 1e7 m>
   ```
-* As since Ruby 2.5.0 `pp` is required by default, consider implementing multiline `#pretty_print` for the value, especially if it contains lots of data that is reasonable to print in multiple lines
+* As since Ruby 2.5 `pp` is required by default, consider implementing multiline `#pretty_print` for the value, especially if it contains lots of data that is reasonable to print in multiple lines
   * Documentation on implementing `#pretty_print` (pretty terse, yet enough to start) could be found [here](https://docs.ruby-lang.org/en/2.5.0/PP.html#class-PP-label-Output+Customization)
 
 ## Comparison
@@ -198,7 +205,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   # Bad
   Quantity.new(10, 'm') == 10 # could be helpful in some particular case yet source of hidden bugs
   ```
-* See "Behavior in hashes" about overriding `#eql?`
+* See "[Behavior in hashes](https://github.com/zverok/good-value-object#behavior-in-hashes)" about overriding `#eql?`
 * **Never** override `#equal?`
 * Provide order comparison for values (`<`, `>` and so on) if, and only if, order on all acceptable values is defined and unambiguous
   * It is strongly advised to provide those methods by implementing `<=>` and including `Comparable` (and it will give you `==` for free)
@@ -225,7 +232,7 @@ We can think about most value objects as a Struct (not Ruby's particular impleme
   # Also clear and typed, needs mindful implementation
   Quantity.infinity('m')
   ```
-  * See also "Behavior in ranges" for notes about Range implementation quirks
+  * See also "[Behavior in ranges](https://github.com/zverok/good-value-object#behavior-in-ranges)" for notes about Range implementation quirks
 
 ## Other operators
 
@@ -362,7 +369,11 @@ Quantity.try_from_a([10]) # => nil
 
 ## Behavior in ranges
 
-For most of its functionality, Ruby's `Range` currently relies on value providing `#succ` (next value in ordered values space). Unfortunately, this includes case equality `===` too. Therefore, two opposite rules:
+For most of its functionality, Ruby's `Range` currently relies on value providing `#succ` (next value in ordered values space). Unfortunately, this includes case equality `===` too.
+
+**UPD:** Since Ruby 2.6, `#===` uses `cover?` underneath, so "not working" or "too slow" examples of `case` below are working correctly. So, rule about implementing `#succ` becomes simpler: "Implement it, if it makes unambigous sense for your type".
+
+For code expecting to work under Ruby < 2.6, there stay two opposite rules:
 
 * Consider providing `#succ` method if value space is small and has unambiguous granularity, to allow code like this:
   ```ruby
@@ -390,8 +401,6 @@ For most of its functionality, Ruby's `Range` currently relies on value providin
   # The only solution, again:
   if (Quantity.new(1, 'm')..Quantity.new(10, 'm')).cover?(quantity)
   ```
-
-See also corresponding [bug](https://bugs.ruby-lang.org/issues/14575) in Ruby tracker for discussion if this behavior.
 
 ## Serialization/deserialization
 
