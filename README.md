@@ -465,3 +465,47 @@ def ==(other)
   other.respond_to?(:amount) && other.respond_to?(:unit) && ...
 end
 ```
+
+## Pattern Matching
+
+Value objects are a prime candidate for use with the pattern matching syntax introduced in Ruby 2.7.
+
+The easiest way to integrate with pattern matching is to return a hash of attributes from `#decontruct_keys`. The simplest implementation is to just call `#to_h`, if that method is already available. This allows the object to be pattern matched using the hash syntax:
+
+```ruby
+class Quantity
+  ...
+
+  def decontruct_keys(_keys)
+    to_h
+  end
+end
+
+case Quantity.new(10, 'm')
+in unit: 'm', amount:
+  puts "Metric: #{amount} meters"
+in unit: 'ft', amount:
+  puts "Imperial: #{amount} feet"
+end
+```
+
+The `_keys` argument provided to `#decontruct_keys` can be ignored, but if generating the returned hash is an expensive operation, this argument can be used to optimize performance.
+
+Consider also supporting the array syntax if the attributes have an obvious or intuitive ordering (See also: keyword arguments vs positional arguments in [Construction](#construction)). This is done by returning an array of attributes from the `#deconstruct` method:
+
+```ruby
+class Quantity
+  ...
+
+  def deconstruct
+    [@amount, @unit]
+  end
+end
+
+case Quantity.new(10, 'm')
+in amount, 'm'
+  puts "Metric: #{amount} meters"
+in amount, 'ft'
+  puts "Imperial: #{amount} feet"
+end
+```
